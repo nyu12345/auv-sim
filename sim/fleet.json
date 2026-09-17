@@ -1,0 +1,10 @@
+{
+  "auvs": [
+    { "id": "auv-1", "name": "Mako-01", "spawn": { "x": 10, "y": 10, "dir": "N" } },
+    { "id": "auv-2", "name": "Mako-02", "spawn": { "x": 50, "y": 50, "dir": "S" } },
+    { "id": "auv-3", "name": "Mako-03", "spawn": { "x": 80, "y": 20, "dir": "W" } }
+  ],
+  "boats": [
+    { "id": "boat-1", "name": "Leviathan", "x": 50, "y": 50 }
+  ]
+}

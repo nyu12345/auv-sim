@@ -1,0 +1,136 @@
+# One service per fleet.json entry. The services are peers — no depends_on
+# between vehicles, no shared lifecycle — so any one can be rebuilt or rolled
+# back on its own:
+#
+#   AUV2_VERSION=v2 docker compose up -d --no-deps --build auv-2   # deploy one
+#   AUV2_VERSION=v1 docker compose up -d --no-deps auv-2           # roll it back
+#
+# Deliberately no restart policy: a stopped container must stay stopped, so the
+# world server can hold that vehicle's position while its software is down.
+#
+# Each hull gets a named volume for its flight recorder (MCAP files in /data).
+# The volume outlives the container, so a deploy or rollback keeps every
+# earlier run's log; `docker compose down -v` is the only thing that wipes it.
+#
+# Two networks stand in for two links. `ship` is the vessel's own network:
+# hulls and the ship's NATS server. `uplink` is the link between the ship's
+# server and shore. Cutting only the uplink is then one command:
+#
+# Named so that `ship` sorts first: Docker publishes a container's ports
+# through its first network, so 4222 must ride `ship` for the host (tests,
+# inspect snippets) to keep reaching the ship's server during an uplink cut.
+#
+#   docker network disconnect auv-sim_uplink nats-boat   # satellite down
+#   docker network connect    auv-sim_uplink nats-boat   # satellite back
+#
+
+services:
+  # The ship's NATS server (config in nats/boat.conf): JetStream with the
+  # OFFLOAD stream on a volume, and a leafnode dialling shore. Hulls publish
+  # here and get their ack from here, so a dead uplink costs them nothing.
+  nats-boat:
+    image: nats:latest
+    container_name: nats-boat
+    command: ["--config", "/etc/nats/boat.conf"]
+    ports:
+      - "4222:4222"
+    volumes:
+      - ./nats/boat.conf:/etc/nats/boat.conf:ro
+      - nats-boat-data:/data
+    networks: [ship, uplink]
+
+  # Shore's NATS server (nats/shore.conf): accepts the ship's leafnode on
+  # 7422 and holds a mirror of the ship's OFFLOAD stream. 4223 on the host so
+  # the tests and the inspect snippets can reach both servers.
+  nats-shore:
+    image: nats:latest
+    container_name: nats-shore
+    command: ["--config", "/etc/nats/shore.conf"]
+    ports:
+      - "4223:4222"
+    volumes:
+      - ./nats/shore.conf:/etc/nats/shore.conf:ro
+      - nats-shore-data:/data
+    networks: [uplink]
+
+  # Shore station: last-known fleet picture, served to the browser on 8766.
+  # Its mirror of every hull's flight recorder lives on shore-data, so a
+  # restart reads the picture back from disk instead of starting blind.
+  shore:
+    image: shore
+    build:
+      context: .
+      dockerfile: Dockerfile.node
+    container_name: shore
+    ports:
+      - "8766:8766"
+    volumes:
+      - shore-data:/data
+    environment:
+      SHORE_DIR: /data
+      NATS_URL: nats://nats-shore:4222
+    depends_on: [nats-shore]
+    networks: [uplink]
+
+  auv-1:
+    image: auv:${AUV1_VERSION:-v1}
+    build:
+      context: .
+      args:
+        AUV_VERSION: ${AUV1_VERSION:-v1}
+        AUV_ENTRY: ${AUV1_ENTRY:-auv.py}
+    container_name: auv-1
+    volumes:
+      - auv-1-data:/data
+    environment:
+      AUV_ID: auv-1
+      WORLD_HOST: ${WORLD_HOST:-host.docker.internal}
+      NATS_URL: nats://nats-boat:4222
+    depends_on: [nats-boat]
+    networks: [ship]
+
+  auv-2:
+    image: auv:${AUV2_VERSION:-v1}
+    build:
+      context: .
+      args:
+        AUV_VERSION: ${AUV2_VERSION:-v1}
+        AUV_ENTRY: ${AUV2_ENTRY:-auv.py}
+    container_name: auv-2
+    volumes:
+      - auv-2-data:/data
+    environment:
+      AUV_ID: auv-2
+      WORLD_HOST: ${WORLD_HOST:-host.docker.internal}
+      NATS_URL: nats://nats-boat:4222
+    depends_on: [nats-boat]
+    networks: [ship]
+
+  auv-3:
+    image: auv:${AUV3_VERSION:-v1}
+    build:
+      context: .
+      args:
+        AUV_VERSION: ${AUV3_VERSION:-v1}
+        AUV_ENTRY: ${AUV3_ENTRY:-auv.py}
+    container_name: auv-3
+    volumes:
+      - auv-3-data:/data
+    environment:
+      AUV_ID: auv-3
+      WORLD_HOST: ${WORLD_HOST:-host.docker.internal}
+      NATS_URL: nats://nats-boat:4222
+    depends_on: [nats-boat]
+    networks: [ship]
+
+networks:
+  ship:
+  uplink:
+
+volumes:
+  nats-boat-data:
+  nats-shore-data:
+  shore-data:
+  auv-1-data:
+  auv-2-data:
+  auv-3-data:

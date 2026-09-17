@@ -1,0 +1,14 @@
+FROM python:3.11-slim
+
+# The shore station. Kept apart from the AUV image so the vehicle image only
+# carries what's on a hull. No version baking: shore isn't part of the
+# deploy/rollback story the way AUV behaviours are.
+
+# Container default. The script still falls back to localhost bare-metal.
+ENV NATS_URL=nats://nats-shore:4222
+
+WORKDIR /app
+COPY sim/shore.py sim/messages.py sim/streams.py sim/log.py sim/mirror.py sim/fleet.json ./
+RUN pip install --no-cache-dir nats-py websockets pydantic mcap
+
+CMD ["python3", "-u", "shore.py"]

@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+
+# Runtime data: hull flight recorders and shore's mirror when run bare-metal
+logs/
+shore_data/
+shore-output/
+
+/docs
