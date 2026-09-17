@@ -1,5 +1,8 @@
 # AUV sim
 
+<img width="1294" height="727" alt="Screenshot 2026-09-17 at 2 28 11 AM" src="https://github.com/user-attachments/assets/633cd1cf-ed19-40d1-993e-bf1482a216ad" />
+
+
 A simulation of the shore-side fleet management problem: deploying code to AUVs, monitoring them over an unreliable connection, and operating from a degraded picture when the link drops. AUVs run as independent Docker containers, offload telemetry through NATS/JetStream, and shore reassembles their logs and tracks their positions across restarts, crashes, and network outages.
 
 **Built with:** Python (Pydantic), NATS/JetStream, Docker, MCAP, WebSockets, NiceGUI
